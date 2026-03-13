@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw } from "lucide-react";
 
 type Status = "waiting" | "downloading" | "done" | "error";
@@ -159,7 +159,29 @@ function ProgressBar({ progress, status, platform }: { progress: number; status:
 
 export default function Home() {
   const [input, setInput] = useState("");
-  const [items, setItems] = useState<DownloadItem[]>([]);
+  const [items, setItems] = useState<DownloadItem[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = localStorage.getItem("vd_items");
+      if (!stored) return [];
+      const parsed: DownloadItem[] = JSON.parse(stored);
+      // Stale downloading/waiting items from a previous session → mark as error
+      return parsed.map((item) =>
+        item.status === "downloading" || item.status === "waiting"
+          ? { ...item, status: "error", error: "Sayfa yenilendi, tekrar dene" }
+          : item
+      );
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    const persistable = items.filter(
+      (d) => d.status === "done" || d.status === "error"
+    );
+    localStorage.setItem("vd_items", JSON.stringify(persistable));
+  }, [items]);
 
   const detected = extractUrls(input);
   const foundCount = detected.length;
@@ -242,6 +264,7 @@ export default function Home() {
     setItems((prev) =>
       prev.filter((d) => d.status !== "done" && d.status !== "error")
     );
+    localStorage.removeItem("vd_items");
   };
 
   const hasClearable = items.some(
