@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { CheckCircle, XCircle, Loader2, Download, Link, Trash2 } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw } from "lucide-react";
 
 type Status = "waiting" | "downloading" | "done" | "error";
 type Platform = "instagram" | "tiktok" | "youtube";
@@ -230,6 +230,14 @@ export default function Home() {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") handleAdd();
   };
 
+  const retryItem = useCallback(
+    (item: DownloadItem) => {
+      update(item.id, { status: "waiting", progress: 0, error: undefined, speed: undefined, eta: undefined, filename: undefined });
+      startDownload({ ...item, status: "waiting", progress: 0 });
+    },
+    [update, startDownload]
+  );
+
   const clearDone = () => {
     setItems((prev) =>
       prev.filter((d) => d.status !== "done" && d.status !== "error")
@@ -349,8 +357,19 @@ export default function Home() {
                   </p>
                 )}
 
-                {item.status === "error" && item.error && (
-                  <p className="text-xs text-red-400">{item.error}</p>
+                {item.status === "error" && (
+                  <div className="flex items-center justify-between gap-2">
+                    {item.error && (
+                      <p className="text-xs text-red-400 truncate">{item.error}</p>
+                    )}
+                    <button
+                      onClick={() => retryItem(item)}
+                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600 transition-colors shrink-0 ml-auto"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Tekrar dene
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
