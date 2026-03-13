@@ -1,36 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Video Downloader
 
-## Getting Started
+Lokal çalışan, API anahtarı gerektirmeyen video indirici. Instagram Reels, TikTok ve YouTube Shorts destekler.
 
-First, run the development server:
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)
+![yt-dlp](https://img.shields.io/badge/yt--dlp-latest-blue)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss)
+
+---
+
+## Özellikler
+
+- **Çoklu platform** — Instagram Reels/Posts, TikTok videoları, YouTube Shorts
+- **Karışık yapıştırma** — Farklı platformlardan linkleri aynı anda yapıştır, her biri otomatik algılanır
+- **Platform badge'leri** — Her video satırında hangi platforma ait olduğu görsel olarak gösterilir
+- **Canlı progress** — İndirme yüzdesi, hız (MB/s) ve ETA gerçek zamanlı güncellenir
+- **SSE mimarisi** — Server-Sent Events ile düşük latency, polling yok
+- **Çoklu indirme** — Birden fazla link aynı anda indirilebilir
+
+## Desteklenen Platformlar
+
+| Platform | Örnek URL formatı |
+|----------|-------------------|
+| Instagram | `instagram.com/reel/...` · `instagram.com/p/...` |
+| TikTok | `tiktok.com/@user/video/...` · `vm.tiktok.com/...` |
+| YouTube | `youtube.com/shorts/...` · `youtu.be/...` |
+
+## Kurulum
+
+### Gereksinimler
+
+- Node.js 18+
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+- ffmpeg (video+audio birleştirme için)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# yt-dlp
+brew install yt-dlp
+
+# ffmpeg
+brew install ffmpeg
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Başlatma
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Tarayıcıda `http://localhost:3000` adresi açılır.
 
-## Learn More
+İndirilen videolar proje kök dizinindeki `downloads/` klasörüne kaydedilir.
 
-To learn more about Next.js, take a look at the following resources:
+## Kullanım
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Bir veya birden fazla video linkini metin kutusuna yapıştır
+2. Farklı platformlardan linkler karıştırılabilir
+3. **İndir** butonuna tıkla veya `Cmd+Enter` / `Ctrl+Enter`
+4. Her video için platform badge'i, progress bar ve hız bilgisi görüntülenir
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## CLI Kullanımı
 
-## Deploy on Vercel
+```bash
+python3 download.py https://www.instagram.com/reel/xxx
+python3 download.py --cookies cookies.txt https://www.instagram.com/reel/yyy
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Private içerikler için tarayıcı extension'ı ile export edilmiş `cookies.txt` kullanılabilir.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Teknik Yapı
+
+```
+app/
+├── page.tsx              # UI — platform detect, badge, progress
+├── layout.tsx
+└── api/
+    └── download/
+        └── route.ts      # SSE endpoint — yt-dlp spawn
+download.py               # CLI alternatifi
+downloads/                # İndirilen videolar (git ignore)
+```
+
+Mimari: Next.js App Router + SSE stream. Her indirme talebi için ayrı bir `yt-dlp` process spawn edilir ve stdout/stderr satır satır parse edilerek client'a event olarak iletilir.
