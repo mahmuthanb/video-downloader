@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw, X, Settings, FolderOpen } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw, X, Settings, FolderOpen, Cookie, Upload } from "lucide-react";
 
 type Status = "waiting" | "downloading" | "done" | "error";
 type Platform = "instagram" | "tiktok" | "youtube";
@@ -162,6 +162,8 @@ const MAX_CONCURRENT = 3;
 export default function Home() {
   const [input, setInput] = useState("");
   const [showSettings, setShowSettings] = useState(false);
+  const [cookieLoaded, setCookieLoaded] = useState(false);
+  const cookieInputRef = useRef<HTMLInputElement>(null);
   const [outputDir, setOutputDir] = useState(() => {
     if (typeof window === "undefined") return "downloads";
     return localStorage.getItem("vd_outputDir") ?? "downloads";
@@ -194,6 +196,10 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("vd_outputDir", outputDir);
   }, [outputDir]);
+
+  useEffect(() => {
+    fetch("/api/cookies").then((r) => r.json()).then((d) => setCookieLoaded(d.loaded));
+  }, []);
 
   const detected = extractUrls(input);
   const foundCount = detected.length;
@@ -301,6 +307,22 @@ export default function Home() {
     [update]
   );
 
+  const handleCookieUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    const r = await fetch("/api/cookies", { method: "POST", body: formData });
+    const d = await r.json();
+    setCookieLoaded(d.loaded);
+    if (cookieInputRef.current) cookieInputRef.current.value = "";
+  };
+
+  const handleCookieDelete = async () => {
+    await fetch("/api/cookies", { method: "DELETE" });
+    setCookieLoaded(false);
+  };
+
   const clearDone = () => {
     setItems((prev) =>
       prev.filter((d) => d.status !== "done" && d.status !== "error")
@@ -362,6 +384,44 @@ export default function Home() {
                 Göreceli yol (proje kökünden) veya mutlak yol girilebilir.
               </p>
             </label>
+
+            <div className="border-t border-gray-100 pt-3 mt-3 space-y-2">
+              <span className="text-xs text-gray-500 flex items-center gap-1">
+                <Cookie className="w-3 h-3" />
+                Cookie dosyası
+              </span>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-medium ${cookieLoaded ? "text-emerald-600" : "text-gray-400"}`}>
+                  {cookieLoaded ? "Yüklü" : "Yüklenmedi"}
+                </span>
+                <input
+                  ref={cookieInputRef}
+                  type="file"
+                  accept=".txt"
+                  onChange={handleCookieUpload}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => cookieInputRef.current?.click()}
+                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600 transition-colors ml-auto"
+                >
+                  <Upload className="w-3 h-3" />
+                  {cookieLoaded ? "Değiştir" : "Yükle"}
+                </button>
+                {cookieLoaded && (
+                  <button
+                    onClick={handleCookieDelete}
+                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Sil
+                  </button>
+                )}
+              </div>
+              <p className="text-[11px] text-gray-400">
+                Netscape formatında cookies.txt (özel içerikler için).
+              </p>
+            </div>
           </div>
         )}
 

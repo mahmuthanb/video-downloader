@@ -3,6 +3,8 @@ import path from "path";
 import fs from "fs";
 import { NextRequest } from "next/server";
 
+const COOKIE_PATH = path.join(process.cwd(), ".cookies", "cookies.txt");
+
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get("url");
   const dir = request.nextUrl.searchParams.get("dir") || "downloads";
@@ -27,7 +29,7 @@ export async function GET(request: NextRequest) {
         );
       };
 
-      const proc = spawn("yt-dlp", [
+      const ytdlpArgs = [
         "--output",
         `${outputDir}/%(uploader)s_%(id)s.%(ext)s`,
         "--format",
@@ -36,8 +38,15 @@ export async function GET(request: NextRequest) {
         "mp4",
         "--no-playlist",
         "--newline",
-        url,
-      ]);
+      ];
+
+      if (fs.existsSync(COOKIE_PATH)) {
+        ytdlpArgs.push("--cookies", COOKIE_PATH);
+      }
+
+      ytdlpArgs.push(url);
+
+      const proc = spawn("yt-dlp", ytdlpArgs);
 
       let filename = "";
 
