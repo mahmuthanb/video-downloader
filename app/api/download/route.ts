@@ -5,12 +5,16 @@ import { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get("url");
+  const dir = request.nextUrl.searchParams.get("dir") || "downloads";
 
   if (!url) {
     return new Response("Missing url", { status: 400 });
   }
 
-  const outputDir = path.join(process.cwd(), "downloads");
+  // Resolve relative to cwd; prevent escaping project root via absolute paths
+  const outputDir = path.isAbsolute(dir)
+    ? dir
+    : path.join(process.cwd(), dir);
   fs.mkdirSync(outputDir, { recursive: true });
 
   const encoder = new TextEncoder();

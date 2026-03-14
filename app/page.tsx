@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw, X } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw, X, Settings, FolderOpen } from "lucide-react";
 
 type Status = "waiting" | "downloading" | "done" | "error";
 type Platform = "instagram" | "tiktok" | "youtube";
@@ -161,6 +161,11 @@ const MAX_CONCURRENT = 3;
 
 export default function Home() {
   const [input, setInput] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
+  const [outputDir, setOutputDir] = useState(() => {
+    if (typeof window === "undefined") return "downloads";
+    return localStorage.getItem("vd_outputDir") ?? "downloads";
+  });
   const esRefs = useRef<Map<string, EventSource>>(new Map());
   const [items, setItems] = useState<DownloadItem[]>(() => {
     if (typeof window === "undefined") return [];
@@ -186,6 +191,10 @@ export default function Home() {
     localStorage.setItem("vd_items", JSON.stringify(persistable));
   }, [items]);
 
+  useEffect(() => {
+    localStorage.setItem("vd_outputDir", outputDir);
+  }, [outputDir]);
+
   const detected = extractUrls(input);
   const foundCount = detected.length;
 
@@ -203,7 +212,7 @@ export default function Home() {
   const startDownload = useCallback(
     (item: DownloadItem) => {
       const es = new EventSource(
-        `/api/download?url=${encodeURIComponent(item.url)}`
+        `/api/download?url=${encodeURIComponent(item.url)}&dir=${encodeURIComponent(outputDir)}`
       );
       esRefs.current.set(item.id, es);
 
@@ -233,7 +242,7 @@ export default function Home() {
         cleanup();
       });
     },
-    [update]
+    [update, outputDir]
   );
 
   const cancelItem = useCallback(
@@ -324,7 +333,37 @@ export default function Home() {
             <PlatformBadge platform="tiktok" />
             <PlatformBadge platform="youtube" />
           </div>
+          <button
+            onClick={() => setShowSettings((v) => !v)}
+            title="Ayarlar"
+            className={`ml-auto p-1.5 rounded-lg transition-colors ${showSettings ? "text-indigo-600 bg-indigo-50" : "text-gray-400 hover:text-gray-600"}`}
+          >
+            <Settings className="w-4 h-4" />
+          </button>
         </div>
+
+        {/* Settings panel */}
+        {showSettings && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Ayarlar</p>
+            <label className="block space-y-1.5">
+              <span className="text-xs text-gray-500 flex items-center gap-1">
+                <FolderOpen className="w-3 h-3" />
+                İndirme klasörü
+              </span>
+              <input
+                type="text"
+                value={outputDir}
+                onChange={(e) => setOutputDir(e.target.value || "downloads")}
+                placeholder="downloads"
+                className="w-full text-sm text-gray-700 border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:border-indigo-400 transition-colors font-mono"
+              />
+              <p className="text-[11px] text-gray-400">
+                Göreceli yol (proje kökünden) veya mutlak yol girilebilir.
+              </p>
+            </label>
+          </div>
+        )}
 
         {/* Input card */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
@@ -442,7 +481,7 @@ export default function Home() {
 
         <p className="text-center text-xs text-gray-400">
           Videolar{" "}
-          <code className="bg-gray-100 px-1 rounded">downloads/</code>{" "}
+          <code className="bg-gray-100 px-1 rounded">{outputDir}/</code>{" "}
           klasörüne kaydedilir
         </p>
       </div>
