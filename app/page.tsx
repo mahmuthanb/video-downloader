@@ -157,6 +157,8 @@ function ProgressBar({ progress, status, platform }: { progress: number; status:
   );
 }
 
+const MAX_CONCURRENT = 3;
+
 export default function Home() {
   const [input, setInput] = useState("");
   const esRefs = useRef<Map<string, EventSource>>(new Map());
@@ -246,6 +248,17 @@ export default function Home() {
     [update]
   );
 
+  // Queue processor: start waiting items up to MAX_CONCURRENT
+  useEffect(() => {
+    const activeCount = items.filter((d) => d.status === "downloading").length;
+    const slots = MAX_CONCURRENT - activeCount;
+    if (slots <= 0) return;
+    const pending = items.filter(
+      (d) => d.status === "waiting" && !esRefs.current.has(d.id)
+    );
+    pending.slice(0, slots).forEach(startDownload);
+  }, [items, startDownload]);
+
   const handleAdd = () => {
     if (detected.length === 0) return;
 
@@ -264,7 +277,7 @@ export default function Home() {
 
     setItems((prev) => [...prev, ...newItems]);
     setInput("");
-    newItems.forEach(startDownload);
+    // Queue processor useEffect handles starting downloads
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -274,9 +287,9 @@ export default function Home() {
   const retryItem = useCallback(
     (item: DownloadItem) => {
       update(item.id, { status: "waiting", progress: 0, error: undefined, speed: undefined, eta: undefined, filename: undefined });
-      startDownload({ ...item, status: "waiting", progress: 0 });
+      // Queue processor useEffect handles starting
     },
-    [update, startDownload]
+    [update]
   );
 
   const clearDone = () => {
