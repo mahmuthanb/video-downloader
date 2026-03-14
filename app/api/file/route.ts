@@ -35,9 +35,17 @@ export async function GET(request: NextRequest) {
     },
   });
 
+  const ext = path.extname(safeName).toLowerCase();
+  const contentType =
+    ext === ".mp4" ? "video/mp4" :
+    ext === ".webm" ? "video/webm" :
+    ext === ".m4a" ? "audio/mp4" :
+    ext === ".mp3" ? "audio/mpeg" :
+    "application/octet-stream";
+
   return new Response(stream, {
     headers: {
-      "Content-Type": "video/mp4",
+      "Content-Type": contentType,
       "Content-Length": String(stat.size),
       "Content-Disposition": `attachment; filename="${safeName}"`,
     },

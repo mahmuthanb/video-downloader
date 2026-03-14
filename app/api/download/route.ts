@@ -46,9 +46,19 @@ export async function GET(request: NextRequest) {
 
       ytdlpArgs.push(url);
 
-      const proc = spawn("yt-dlp", ytdlpArgs);
+      // Extend PATH so yt-dlp can find ffmpeg (Homebrew on macOS)
+      const extendedPath = [
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        process.env.PATH ?? "",
+      ].join(":");
+
+      const proc = spawn("yt-dlp", ytdlpArgs, {
+        env: { ...process.env, PATH: extendedPath },
+      });
 
       let filename = "";
+      let mergedFilename = ""; // set only when [Merger] fires
 
       const handleLine = (line: string) => {
         // Progress: [download]  45.3% of 10.50MiB at 1.23MiB/s ETA 00:07
@@ -64,17 +74,23 @@ export async function GET(request: NextRequest) {
           return;
         }
 
-        // Destination file
+        // Destination file — may fire multiple times (video stream, then audio stream)
         const destMatch = line.match(/\[download\] Destination: (.+)/);
         if (destMatch) {
           filename = path.basename(destMatch[1].trim());
         }
 
-        // Merger output (merging audio+video)
+        // Merger output — this is the final merged file; takes priority over Destination
         const mergeMatch = line.match(/\[Merger\] Merging formats into "(.+)"/);
         if (mergeMatch) {
-          filename = path.basename(mergeMatch[1].trim());
+          mergedFilename = path.basename(mergeMatch[1].trim());
           send("progress", { progress: 99, speed: "", eta: "merging..." });
+        }
+
+        // Already-downloaded single file (no merge needed)
+        const alreadyMatch = line.match(/\[download\] (.+) has already been downloaded/);
+        if (alreadyMatch) {
+          filename = path.basename(alreadyMatch[1].trim());
         }
       };
 
@@ -88,7 +104,8 @@ export async function GET(request: NextRequest) {
 
       proc.on("close", (code) => {
         if (code === 0) {
-          send("done", { filename });
+          // Prefer merged filename; fall back to last Destination
+          send("done", { filename: mergedFilename || filename });
         } else {
           send("error", { error: "İndirme başarısız. Link geçerli mi?" });
         }
