@@ -34,6 +34,10 @@ export async function GET(request: NextRequest) {
         resolve(Response.json({
           title: json.title ?? null,
           thumbnail: json.thumbnail ?? null,
+          tags: Array.isArray(json.tags) ? json.tags.slice(0, 10) : [],
+          categories: Array.isArray(json.categories) ? json.categories : [],
+          uploader: json.uploader ?? json.channel ?? null,
+          duration: typeof json.duration === "number" ? json.duration : null,
         }));
       } catch {
         resolve(new Response("Parse error", { status: 500 }));

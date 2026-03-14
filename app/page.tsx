@@ -18,6 +18,41 @@ interface DownloadItem {
   error?: string;
   thumbnail?: string;
   title?: string;
+  tags?: string[];
+  uploader?: string;
+}
+
+function buildTags(meta: {
+  tags?: string[];
+  categories?: string[];
+  uploader?: string | null;
+  duration?: number | null;
+}, platform: Platform): string[] {
+  const set = new Set<string>();
+
+  // Platform tag
+  set.add(platform);
+
+  // Uploader
+  if (meta.uploader) set.add(meta.uploader);
+
+  // Duration-based
+  if (meta.duration != null) {
+    if (meta.duration < 60) set.add("kısa");
+    else if (meta.duration < 600) set.add("orta");
+    else set.add("uzun");
+  }
+
+  // Categories (first 2)
+  meta.categories?.slice(0, 2).forEach((c) => set.add(c.toLowerCase()));
+
+  // Video tags (first 3, skip overly long ones)
+  meta.tags
+    ?.filter((t) => t.length <= 20)
+    .slice(0, 3)
+    .forEach((t) => set.add(t.toLowerCase()));
+
+  return Array.from(set);
 }
 
 const PLATFORM_PATTERNS: { platform: Platform; regex: RegExp }[] = [
@@ -164,6 +199,7 @@ const MAX_CONCURRENT = 3;
 export default function Home() {
   const [input, setInput] = useState("");
   const [showSettings, setShowSettings] = useState(false);
+  const [activeTag, setActiveTag] = useState<string | null>(null);
   const [cookieLoaded, setCookieLoaded] = useState(false);
   const cookieInputRef = useRef<HTMLInputElement>(null);
   const batchInputRef = useRef<HTMLInputElement>(null);
@@ -296,14 +332,18 @@ export default function Home() {
     setItems((prev) => [...prev, ...newItems]);
     setInput("");
 
-    // Fetch metadata (thumbnail + title) in background for each new item
+    // Fetch metadata in background for each new item
     newItems.forEach((item) => {
       fetch(`/api/meta?url=${encodeURIComponent(item.url)}`)
         .then((r) => r.ok ? r.json() : null)
         .then((meta) => {
-          if (meta?.thumbnail || meta?.title) {
-            update(item.id, { thumbnail: meta.thumbnail, title: meta.title });
-          }
+          if (!meta) return;
+          update(item.id, {
+            thumbnail: meta.thumbnail ?? undefined,
+            title: meta.title ?? undefined,
+            uploader: meta.uploader ?? undefined,
+            tags: buildTags(meta, item.platform),
+          });
         })
         .catch(() => {});
     });
@@ -368,6 +408,14 @@ export default function Home() {
     if (platformCounts.youtube) parts.push(`${platformCounts.youtube} YouTube`);
     return parts.join(" · ");
   };
+
+  const allTags = Array.from(
+    new Set(items.flatMap((d) => d.tags ?? []))
+  ).slice(0, 20);
+
+  const visibleItems = activeTag
+    ? items.filter((d) => d.tags?.includes(activeTag))
+    : items;
 
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col items-center px-4 py-12">
@@ -512,7 +560,26 @@ export default function Home() {
               )}
             </div>
 
-            {items.map((item) => (
+            {/* Tag filter */}
+            {allTags.length > 0 && (
+              <div className="flex flex-wrap gap-1 px-1">
+                {allTags.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                    className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors ${
+                      activeTag === tag
+                        ? "bg-indigo-600 text-white"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {visibleItems.map((item) => (
               <div
                 key={item.id}
                 className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 space-y-2"
@@ -583,6 +650,24 @@ export default function Home() {
                       <Download className="w-3 h-3" />
                       İndir
                     </a>
+                  </div>
+                )}
+
+                {item.tags && item.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {item.tags.map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                          activeTag === tag
+                            ? "bg-indigo-600 text-white"
+                            : "bg-gray-100 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600"
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
                   </div>
                 )}
 
