@@ -5,25 +5,28 @@ import { NextRequest } from "next/server";
 
 const COOKIE_PATH = path.join(process.cwd(), ".cookies", "cookies.txt");
 
-async function explainError(stderr: string): Promise<string> {
-  const fallback = "İndirme başarısız. Link geçerli mi?";
-  try {
-    const res = await fetch("http://localhost:11434/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "llama3.2:1b",
-        prompt: `yt-dlp video indirme aracından şu hata geldi:\n\n${stderr.slice(-800)}\n\nKullanıcıya Türkçe, 1-2 cümle, teknik terim kullanmadan ne yanlış gittiğini açıkla. Sadece açıklamayı yaz.`,
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) return fallback;
-    const data = await res.json() as { response?: string };
-    return data.response?.trim() || fallback;
-  } catch {
-    return fallback;
+const ERROR_PATTERNS: { pattern: RegExp; message: string }[] = [
+  { pattern: /HTTP Error 403|Forbidden/i, message: "Erişim reddedildi. Cookie dosyası gerekebilir." },
+  { pattern: /HTTP Error 404|Not Found/i, message: "Video bulunamadı. Link silinmiş olabilir." },
+  { pattern: /HTTP Error 429|rate.?limit/i, message: "İstek limiti aşıldı. Biraz bekleyip tekrar dene." },
+  { pattern: /private video/i, message: "Bu video gizli, indirilemez." },
+  { pattern: /video is unavailable/i, message: "Video mevcut değil veya kaldırılmış." },
+  { pattern: /has been removed/i, message: "Video kaldırılmış." },
+  { pattern: /Sign in to confirm your age/i, message: "Yaş doğrulaması gerekiyor. Cookie ekle." },
+  { pattern: /This content isn't available/i, message: "İçerik kullanılamıyor." },
+  { pattern: /Unsupported URL/i, message: "Bu link desteklenmiyor." },
+  { pattern: /Unable to extract/i, message: "Video bilgisi alınamadı. Link geçerli mi?" },
+  { pattern: /No video formats found/i, message: "İndirilebilir format bulunamadı." },
+  { pattern: /ffmpeg/i, message: "ffmpeg bulunamadı. Kurulu olduğundan emin ol." },
+  { pattern: /Requested format is not available/i, message: "İstenen format mevcut değil." },
+  { pattern: /cookies/i, message: "Oturum açık içerik. Ayarlardan cookie dosyası yükle." },
+];
+
+function explainError(stderr: string): string {
+  for (const { pattern, message } of ERROR_PATTERNS) {
+    if (pattern.test(stderr)) return message;
   }
+  return "İndirme başarısız. Link geçerli mi?";
 }
 
 export async function GET(request: NextRequest) {
@@ -126,13 +129,13 @@ export async function GET(request: NextRequest) {
         text.split("\n").forEach(handleLine);
       });
 
-      proc.on("close", async (code) => {
+      proc.on("close", (code) => {
         if (code === 0) {
           // Prefer merged filename; fall back to last Destination
           send("done", { filename: mergedFilename || filename });
           controller.close();
         } else {
-          const explanation = await explainError(stderrBuffer);
+          const explanation = explainError(stderrBuffer);
           send("error", { error: explanation });
           controller.close();
         }
