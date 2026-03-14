@@ -11,74 +11,103 @@ Lokal çalışan, API anahtarı gerektirmeyen video indirici. Instagram Reels, T
 ## Özellikler
 
 - **Çoklu platform** — Instagram Reels/Posts, TikTok videoları, YouTube Shorts
-- **Karışık yapıştırma** — Farklı platformlardan linkleri aynı anda yapıştır, her biri otomatik algılanır
-- **Platform badge'leri** — Her video satırında hangi platforma ait olduğu görsel olarak gösterilir
-- **Canlı progress** — İndirme yüzdesi, hız (MB/s) ve ETA gerçek zamanlı güncellenir
-- **SSE mimarisi** — Server-Sent Events ile düşük latency, polling yok
-- **Çoklu indirme** — Birden fazla link aynı anda indirilebilir
+- **Karışık yapıştırma** — Farklı platformlardan linkleri aynı anda yapıştır, her biri otomatik algılanır ve badge ile gösterilir
+- **Canlı progress** — İndirme yüzdesi, hız ve ETA gerçek zamanlı; birleştirme aşaması ayrıca gösterilir
+- **Concurrency queue** — Aynı anda max 3 indirme, kalanlar otomatik sıraya girer
+- **İptal & Retry** — Aktif indirmeyi tek tıkla iptal et; hatalı olanları tekrar dene
+- **Tarayıcıdan kaydet** — Tamamlanan videoyu tarayıcıya direkt indir
+- **İndirme geçmişi** — Sayfa yenilense de tamamlanan/hatalı indirmeler korunur
+- **Batch import** — `.txt` veya `.csv` dosyasından URL'leri içe aktar
+- **Cookie desteği** — Netscape formatında `cookies.txt` yükle; özel/giriş gerektiren içerikler için
+- **Özelleştirilebilir klasör** — İndirme klasörünü ayarlardan değiştir (göreceli veya mutlak yol)
+
+---
 
 ## Desteklenen Platformlar
 
-| Platform | Örnek URL formatı |
-|----------|-------------------|
-| Instagram | `instagram.com/reel/...` · `instagram.com/p/...` |
-| TikTok | `tiktok.com/@user/video/...` · `vm.tiktok.com/...` |
+| Platform | Örnek URL |
+|----------|-----------|
+| Instagram | `instagram.com/reel/...` · `instagram.com/p/...` · `instagram.com/tv/...` |
+| TikTok | `tiktok.com/@user/video/...` · `vm.tiktok.com/...` · `vt.tiktok.com/...` |
 | YouTube | `youtube.com/shorts/...` · `youtu.be/...` |
 
-## Kurulum
+---
 
-### Gereksinimler
+## Gereksinimler
 
 - Node.js 18+
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 - ffmpeg (video+audio birleştirme için)
 
 ```bash
-# yt-dlp
-brew install yt-dlp
-
-# ffmpeg
-brew install ffmpeg
+brew install yt-dlp ffmpeg
 ```
 
-### Başlatma
+---
+
+## Kurulum
 
 ```bash
+git clone https://github.com/your-username/insta-downloader.git
+cd insta-downloader
 npm install
 npm run dev
 ```
 
-Tarayıcıda `http://localhost:3000` adresi açılır.
+`http://localhost:3000` adresini aç.
 
-İndirilen videolar proje kök dizinindeki `downloads/` klasörüne kaydedilir.
+---
 
 ## Kullanım
 
-1. Bir veya birden fazla video linkini metin kutusuna yapıştır
-2. Farklı platformlardan linkler karıştırılabilir
-3. **İndir** butonuna tıkla veya `Cmd+Enter` / `Ctrl+Enter`
-4. Her video için platform badge'i, progress bar ve hız bilgisi görüntülenir
+### Temel
 
-## CLI Kullanımı
+1. Video linklerini metin kutusuna yapıştır (platformlar karıştırılabilir)
+2. **İndir** butonuna tıkla veya `Cmd/Ctrl + Enter`
+3. Her video için canlı progress, hız ve ETA izle
+4. Tamamlanan videoda **İndir** bağlantısına tıklayarak tarayıcıya kaydet
+
+### Batch Import
+
+Input kartındaki dosya ikonuna tıkla, `.txt` veya `.csv` seç. İçerisindeki URL'ler otomatik ayrıştırılarak metin kutusuna eklenir.
+
+### Ayarlar (⚙)
+
+Header'daki ⚙ ikonuna tıkla:
+
+| Ayar | Açıklama |
+|------|----------|
+| **İndirme klasörü** | Dosyaların kaydedileceği dizin. Proje köküne göreceli veya mutlak yol. Varsayılan: `downloads/` |
+| **Cookie dosyası** | Netscape formatında `cookies.txt` yükle. Tüm indirmelere otomatik uygulanır. |
+
+### Cookie Kurulumu
+
+Tarayıcı extension'ı ([Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) gibi) ile cookie'leri export et, Ayarlar > Cookie dosyası'ndan yükle.
+
+---
+
+## CLI
 
 ```bash
 python3 download.py https://www.instagram.com/reel/xxx
-python3 download.py --cookies cookies.txt https://www.instagram.com/reel/yyy
+python3 download.py --cookies cookies.txt https://www.tiktok.com/@user/video/yyy
 ```
 
-Private içerikler için tarayıcı extension'ı ile export edilmiş `cookies.txt` kullanılabilir.
+---
 
 ## Teknik Yapı
 
 ```
 app/
-├── page.tsx              # UI — platform detect, badge, progress
+├── page.tsx                  # UI — URL detect, platform badge, progress, queue
 ├── layout.tsx
 └── api/
-    └── download/
-        └── route.ts      # SSE endpoint — yt-dlp spawn
-download.py               # CLI alternatifi
-downloads/                # İndirilen videolar (git ignore)
+    ├── download/route.ts     # SSE endpoint — yt-dlp spawn + stdout parse
+    ├── file/route.ts         # Dosya stream endpoint (tarayıcı indirme)
+    └── cookies/route.ts      # Cookie dosyası yönetimi (GET/POST/DELETE)
+download.py                   # CLI alternatifi
+.cookies/                     # Cookie dosyası (git ignore)
+downloads/                    # İndirilen videolar (git ignore)
 ```
 
-Mimari: Next.js App Router + SSE stream. Her indirme talebi için ayrı bir `yt-dlp` process spawn edilir ve stdout/stderr satır satır parse edilerek client'a event olarak iletilir.
+Her indirme için ayrı bir `yt-dlp` process spawn edilir. `stdout/stderr` satır satır parse edilerek SSE stream üzerinden client'a iletilir. Max 3 eş zamanlı indirme; kalanlar `waiting` statüsünde kalır, slot açılınca otomatik başlar.
