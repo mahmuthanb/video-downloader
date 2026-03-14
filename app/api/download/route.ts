@@ -5,6 +5,27 @@ import { NextRequest } from "next/server";
 
 const COOKIE_PATH = path.join(process.cwd(), ".cookies", "cookies.txt");
 
+async function explainError(stderr: string): Promise<string> {
+  const fallback = "İndirme başarısız. Link geçerli mi?";
+  try {
+    const res = await fetch("http://localhost:11434/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "llama3.2:1b",
+        prompt: `yt-dlp video indirme aracından şu hata geldi:\n\n${stderr.slice(-800)}\n\nKullanıcıya Türkçe, 1-2 cümle, teknik terim kullanmadan ne yanlış gittiğini açıkla. Sadece açıklamayı yaz.`,
+        stream: false,
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return fallback;
+    const data = await res.json() as { response?: string };
+    return data.response?.trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get("url");
   const dir = request.nextUrl.searchParams.get("dir") || "downloads";
@@ -59,6 +80,7 @@ export async function GET(request: NextRequest) {
 
       let filename = "";
       let mergedFilename = ""; // set only when [Merger] fires
+      let stderrBuffer = "";
 
       const handleLine = (line: string) => {
         // Progress: [download]  45.3% of 10.50MiB at 1.23MiB/s ETA 00:07
@@ -99,17 +121,21 @@ export async function GET(request: NextRequest) {
       });
 
       proc.stderr.on("data", (chunk: Buffer) => {
-        chunk.toString().split("\n").forEach(handleLine);
+        const text = chunk.toString();
+        stderrBuffer += text;
+        text.split("\n").forEach(handleLine);
       });
 
-      proc.on("close", (code) => {
+      proc.on("close", async (code) => {
         if (code === 0) {
           // Prefer merged filename; fall back to last Destination
           send("done", { filename: mergedFilename || filename });
+          controller.close();
         } else {
-          send("error", { error: "İndirme başarısız. Link geçerli mi?" });
+          const explanation = await explainError(stderrBuffer);
+          send("error", { error: explanation });
+          controller.close();
         }
-        controller.close();
       });
 
       request.signal.addEventListener("abort", () => {
