@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw, X, Settings, FolderOpen, Cookie, Upload } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw, X, Settings, FolderOpen, Cookie, Upload, FileText } from "lucide-react";
 
 type Status = "waiting" | "downloading" | "done" | "error";
 type Platform = "instagram" | "tiktok" | "youtube";
@@ -164,6 +164,7 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
   const [cookieLoaded, setCookieLoaded] = useState(false);
   const cookieInputRef = useRef<HTMLInputElement>(null);
+  const batchInputRef = useRef<HTMLInputElement>(null);
   const [outputDir, setOutputDir] = useState(() => {
     if (typeof window === "undefined") return "downloads";
     return localStorage.getItem("vd_outputDir") ?? "downloads";
@@ -307,6 +308,18 @@ export default function Home() {
     [update]
   );
 
+  const handleBatchImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      setInput((prev) => (prev ? prev + "\n" + text : text));
+    };
+    reader.readAsText(file);
+    if (batchInputRef.current) batchInputRef.current.value = "";
+  };
+
   const handleCookieUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -441,14 +454,30 @@ export default function Home() {
               <Link className="w-3 h-3" />
               {foundSummary()}
             </span>
-            <button
-              onClick={handleAdd}
-              disabled={foundCount === 0}
-              className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              İndir {foundCount > 1 ? `(${foundCount})` : ""}
-            </button>
+            <div className="flex items-center gap-2">
+              <input
+                ref={batchInputRef}
+                type="file"
+                accept=".txt,.csv"
+                onChange={handleBatchImport}
+                className="hidden"
+              />
+              <button
+                onClick={() => batchInputRef.current?.click()}
+                title="Dosyadan içe aktar (.txt, .csv)"
+                className="flex items-center gap-1 px-2.5 py-2 text-gray-400 hover:text-indigo-600 border border-gray-200 hover:border-indigo-300 rounded-xl transition-colors text-xs"
+              >
+                <FileText className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleAdd}
+                disabled={foundCount === 0}
+                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                İndir {foundCount > 1 ? `(${foundCount})` : ""}
+              </button>
+            </div>
           </div>
         </div>
 
