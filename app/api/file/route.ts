@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     headers: {
       "Content-Type": contentType,
       "Content-Length": String(stat.size),
-      "Content-Disposition": `attachment; filename="${safeName}"`,
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(safeName)}`,
     },
   });
 }
