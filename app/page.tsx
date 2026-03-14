@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw, X, Settings, FolderOpen, Cookie, Upload, FileText } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw, X, Settings, FolderOpen, Cookie, Upload, FileText, RefreshCw, ListVideo } from "lucide-react";
 
 type Status = "waiting" | "downloading" | "done" | "error";
 type Platform = "instagram" | "tiktok" | "youtube";
+type Format = "best" | "1080p" | "720p" | "480p" | "audio";
 
 interface DownloadItem {
   id: string;
@@ -20,7 +21,16 @@ interface DownloadItem {
   title?: string;
   tags?: string[];
   uploader?: string;
+  format?: Format;
 }
+
+const FORMAT_LABELS: Record<Format, string> = {
+  best: "En iyi",
+  "1080p": "1080p",
+  "720p": "720p",
+  "480p": "480p",
+  audio: "Ses",
+};
 
 function buildTags(meta: {
   tags?: string[];
@@ -66,7 +76,7 @@ const PLATFORM_PATTERNS: { platform: Platform; regex: RegExp }[] = [
   },
   {
     platform: "youtube",
-    regex: /https?:\/\/(?:www\.)?(?:youtube\.com\/shorts\/|youtu\.be\/)[^\s"'<>\n]+/g,
+    regex: /https?:\/\/(?:www\.)?(?:youtube\.com\/(?:shorts|watch|playlist)[^\s"'<>\n]*|youtu\.be\/[^\s"'<>\n]+)/g,
   },
 ];
 
@@ -201,6 +211,14 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [cookieLoaded, setCookieLoaded] = useState(false);
+  const [selectedFormat, setSelectedFormat] = useState<Format>("best");
+  const [playlistMode, setPlaylistMode] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("vd_playlistMode") === "true";
+  });
+  const [isEnumerating, setIsEnumerating] = useState(false);
+  const [ytdlpUpdating, setYtdlpUpdating] = useState(false);
+  const [ytdlpUpdateResult, setYtdlpUpdateResult] = useState<string | null>(null);
   const cookieInputRef = useRef<HTMLInputElement>(null);
   const batchInputRef = useRef<HTMLInputElement>(null);
   const [outputDir, setOutputDir] = useState(() => {
@@ -237,6 +255,10 @@ export default function Home() {
   }, [outputDir]);
 
   useEffect(() => {
+    localStorage.setItem("vd_playlistMode", String(playlistMode));
+  }, [playlistMode]);
+
+  useEffect(() => {
     fetch("/api/cookies").then((r) => r.json()).then((d) => setCookieLoaded(d.loaded));
   }, []);
 
@@ -257,7 +279,7 @@ export default function Home() {
   const startDownload = useCallback(
     (item: DownloadItem) => {
       const es = new EventSource(
-        `/api/download?url=${encodeURIComponent(item.url)}&dir=${encodeURIComponent(outputDir)}`
+        `/api/download?url=${encodeURIComponent(item.url)}&dir=${encodeURIComponent(outputDir)}&format=${item.format ?? "best"}`
       );
       esRefs.current.set(item.id, es);
 
@@ -313,34 +335,72 @@ export default function Home() {
     pending.slice(0, slots).forEach(startDownload);
   }, [items, startDownload]);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (detected.length === 0) return;
 
     const existingUrls = new Set(items.map((d) => d.url));
-    const newItems: DownloadItem[] = detected
-      .filter(({ url }) => !existingUrls.has(url))
-      .map(({ url, platform }) => ({
-        id: crypto.randomUUID(),
-        url,
-        platform,
-        status: "waiting",
-        progress: 0,
-      }));
+    const toProcess = detected.filter(({ url }) => !existingUrls.has(url));
+    if (toProcess.length === 0) return;
+
+    let urlsToAdd: { url: string; platform: Platform; title?: string; thumbnail?: string }[];
+
+    if (playlistMode) {
+      setIsEnumerating(true);
+      const results = await Promise.all(
+        toProcess.map(async ({ url, platform }) => {
+          try {
+            const r = await fetch(`/api/playlist?url=${encodeURIComponent(url)}`);
+            if (!r.ok) return [{ url, platform }];
+            const data = await r.json();
+            return (data.entries as { url: string; title?: string; thumbnail?: string }[]).map((e) => ({
+              url: e.url,
+              platform,
+              title: e.title ?? undefined,
+              thumbnail: e.thumbnail ?? undefined,
+            }));
+          } catch {
+            return [{ url, platform }];
+          }
+        })
+      );
+      setIsEnumerating(false);
+      // Flatten and deduplicate
+      const seen = new Set(Array.from(existingUrls));
+      urlsToAdd = results.flat().filter(({ url }) => {
+        if (seen.has(url)) return false;
+        seen.add(url);
+        return true;
+      });
+    } else {
+      urlsToAdd = toProcess.map(({ url, platform }) => ({ url, platform }));
+    }
+
+    const newItems: DownloadItem[] = urlsToAdd.map(({ url, platform, title, thumbnail }) => ({
+      id: crypto.randomUUID(),
+      url,
+      platform,
+      status: "waiting",
+      progress: 0,
+      format: selectedFormat,
+      ...(title ? { title } : {}),
+      ...(thumbnail ? { thumbnail } : {}),
+    }));
 
     if (newItems.length === 0) return;
 
     setItems((prev) => [...prev, ...newItems]);
     setInput("");
 
-    // Fetch metadata in background for each new item
+    // Fetch metadata in background for items missing it
     newItems.forEach((item) => {
+      if (item.title && item.thumbnail) return;
       fetch(`/api/meta?url=${encodeURIComponent(item.url)}`)
         .then((r) => r.ok ? r.json() : null)
         .then((meta) => {
           if (!meta) return;
           update(item.id, {
-            thumbnail: meta.thumbnail ?? undefined,
-            title: meta.title ?? undefined,
+            thumbnail: item.thumbnail ?? meta.thumbnail ?? undefined,
+            title: item.title ?? meta.title ?? undefined,
             uploader: meta.uploader ?? undefined,
             tags: buildTags(meta, item.platform),
           });
@@ -349,8 +409,23 @@ export default function Home() {
     });
   };
 
+  const handleUpdateYtdlp = async () => {
+    setYtdlpUpdating(true);
+    setYtdlpUpdateResult(null);
+    try {
+      const r = await fetch("/api/update-ytdlp", { method: "POST" });
+      const d = await r.json();
+      const firstLine = (d.output as string).split("\n").find((l: string) => l.trim()) ?? "";
+      setYtdlpUpdateResult(d.success ? (firstLine || "Güncellendi") : "Hata oluştu");
+    } catch {
+      setYtdlpUpdateResult("Bağlantı hatası");
+    } finally {
+      setYtdlpUpdating(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") handleAdd();
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") void handleAdd();
   };
 
   const retryItem = useCallback(
@@ -496,6 +571,50 @@ export default function Home() {
                 Netscape formatında cookies.txt (özel içerikler için).
               </p>
             </div>
+
+            <div className="border-t border-gray-100 pt-3 mt-3 space-y-2">
+              <span className="text-xs text-gray-500 flex items-center gap-1">
+                <ListVideo className="w-3 h-3" />
+                Playlist modu
+              </span>
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] text-gray-400">
+                  Açıkken playlist URL'leri otomatik ayrıştırılır.
+                </p>
+                <button
+                  onClick={() => setPlaylistMode((v) => !v)}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                    playlistMode ? "bg-indigo-600" : "bg-gray-200"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                      playlistMode ? "translate-x-4" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-3 mt-3 space-y-2">
+              <span className="text-xs text-gray-500 flex items-center gap-1">
+                <RefreshCw className="w-3 h-3" />
+                yt-dlp güncelle
+              </span>
+              <div className="flex items-center justify-between gap-2">
+                {ytdlpUpdateResult && (
+                  <p className="text-[11px] text-gray-500 truncate flex-1">{ytdlpUpdateResult}</p>
+                )}
+                <button
+                  onClick={handleUpdateYtdlp}
+                  disabled={ytdlpUpdating}
+                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors ml-auto shrink-0"
+                >
+                  <RefreshCw className={`w-3 h-3 ${ytdlpUpdating ? "animate-spin" : ""}`} />
+                  {ytdlpUpdating ? "Güncelleniyor..." : "Güncelle"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -510,6 +629,23 @@ export default function Home() {
             }
             className="w-full h-28 resize-none text-sm text-gray-700 placeholder:text-gray-400 outline-none leading-relaxed"
           />
+          {/* Format selector */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {(Object.keys(FORMAT_LABELS) as Format[]).map((f) => (
+              <button
+                key={f}
+                onClick={() => setSelectedFormat(f)}
+                className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-colors ${
+                  selectedFormat === f
+                    ? "bg-indigo-600 text-white"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                }`}
+              >
+                {FORMAT_LABELS[f]}
+              </button>
+            ))}
+          </div>
+
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-400 flex items-center gap-1">
               <Link className="w-3 h-3" />
@@ -531,12 +667,16 @@ export default function Home() {
                 <FileText className="w-4 h-4" />
               </button>
               <button
-                onClick={handleAdd}
-                disabled={foundCount === 0}
+                onClick={() => void handleAdd()}
+                disabled={foundCount === 0 || isEnumerating}
                 className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-colors"
               >
-                <Download className="w-4 h-4" />
-                İndir {foundCount > 1 ? `(${foundCount})` : ""}
+                {isEnumerating ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                {isEnumerating ? "Ayrıştırılıyor..." : `İndir ${foundCount > 1 ? `(${foundCount})` : ""}`}
               </button>
             </div>
           </div>

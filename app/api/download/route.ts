@@ -29,9 +29,18 @@ function explainError(stderr: string): string {
   return "İndirme başarısız. Link geçerli mi?";
 }
 
+const FORMAT_ARGS: Record<string, string[]> = {
+  best: ["--format", "bestvideo+bestaudio/best", "--merge-output-format", "mp4"],
+  "1080p": ["--format", "bestvideo[height<=1080]+bestaudio/best[height<=1080]", "--merge-output-format", "mp4"],
+  "720p": ["--format", "bestvideo[height<=720]+bestaudio/best[height<=720]", "--merge-output-format", "mp4"],
+  "480p": ["--format", "bestvideo[height<=480]+bestaudio/best[height<=480]", "--merge-output-format", "mp4"],
+  audio: ["--format", "bestaudio/best", "--extract-audio", "--audio-format", "mp3"],
+};
+
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get("url");
   const dir = request.nextUrl.searchParams.get("dir") || "downloads";
+  const format = request.nextUrl.searchParams.get("format") || "best";
 
   if (!url) {
     return new Response("Missing url", { status: 400 });
@@ -53,13 +62,12 @@ export async function GET(request: NextRequest) {
         );
       };
 
+      const formatArgs = FORMAT_ARGS[format] ?? FORMAT_ARGS.best;
+
       const ytdlpArgs = [
         "--output",
         `${outputDir}/%(uploader)s_%(id)s.%(ext)s`,
-        "--format",
-        "bestvideo+bestaudio/best",
-        "--merge-output-format",
-        "mp4",
+        ...formatArgs,
         "--no-playlist",
         "--newline",
       ];
@@ -110,6 +118,12 @@ export async function GET(request: NextRequest) {
         if (mergeMatch) {
           mergedFilename = path.basename(mergeMatch[1].trim());
           send("progress", { progress: 99, speed: "", eta: "merging..." });
+        }
+
+        // ExtractAudio output — final .mp3 filename
+        const extractMatch = line.match(/\[ExtractAudio\] Destination: (.+)/);
+        if (extractMatch) {
+          mergedFilename = path.basename(extractMatch[1].trim());
         }
 
         // Already-downloaded single file (no merge needed)
