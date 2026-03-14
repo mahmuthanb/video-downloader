@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw } from "lucide-react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw, X } from "lucide-react";
 
 type Status = "waiting" | "downloading" | "done" | "error";
 type Platform = "instagram" | "tiktok" | "youtube";
@@ -159,6 +159,7 @@ function ProgressBar({ progress, status, platform }: { progress: number; status:
 
 export default function Home() {
   const [input, setInput] = useState("");
+  const esRefs = useRef<Map<string, EventSource>>(new Map());
   const [items, setItems] = useState<DownloadItem[]>(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -202,6 +203,12 @@ export default function Home() {
       const es = new EventSource(
         `/api/download?url=${encodeURIComponent(item.url)}`
       );
+      esRefs.current.set(item.id, es);
+
+      const cleanup = () => {
+        es.close();
+        esRefs.current.delete(item.id);
+      };
 
       es.addEventListener("progress", (e) => {
         const data = JSON.parse((e as MessageEvent).data);
@@ -211,7 +218,7 @@ export default function Home() {
       es.addEventListener("done", (e) => {
         const data = JSON.parse((e as MessageEvent).data);
         update(item.id, { status: "done", progress: 100, ...data });
-        es.close();
+        cleanup();
       });
 
       es.addEventListener("error", (e) => {
@@ -221,8 +228,20 @@ export default function Home() {
         } catch {
           update(item.id, { status: "error", error: "Bağlantı hatası" });
         }
-        es.close();
+        cleanup();
       });
+    },
+    [update]
+  );
+
+  const cancelItem = useCallback(
+    (item: DownloadItem) => {
+      const es = esRefs.current.get(item.id);
+      if (es) {
+        es.close();
+        esRefs.current.delete(item.id);
+      }
+      update(item.id, { status: "error", error: "İptal edildi", speed: undefined, eta: undefined });
     },
     [update]
   );
@@ -350,11 +369,20 @@ export default function Home() {
                   <span className="text-xs text-gray-500 font-mono truncate flex-1">
                     {shortUrl(item.url)}
                   </span>
-                  <span className="text-xs text-gray-400 shrink-0">
+                  <span className="text-xs text-gray-400 shrink-0 flex items-center gap-1.5">
                     {item.status === "waiting" && "Bekliyor"}
                     {item.status === "downloading" && `${item.progress.toFixed(0)}%`}
                     {item.status === "done" && "Tamamlandı"}
                     {item.status === "error" && "Hata"}
+                    {(item.status === "waiting" || item.status === "downloading") && (
+                      <button
+                        onClick={() => cancelItem(item)}
+                        title="İptal et"
+                        className="text-gray-300 hover:text-red-400 transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </span>
                 </div>
 
