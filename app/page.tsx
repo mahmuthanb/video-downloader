@@ -455,9 +455,19 @@ export default function Home() {
                 )}
 
                 {item.status === "done" && item.filename && (
-                  <p className="text-xs text-emerald-600 font-mono truncate">
-                    {item.filename}
-                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-emerald-600 font-mono truncate">
+                      {item.filename}
+                    </p>
+                    <a
+                      href={`/api/file?name=${encodeURIComponent(item.filename)}&dir=${encodeURIComponent(outputDir)}`}
+                      download={item.filename}
+                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600 transition-colors shrink-0"
+                    >
+                      <Download className="w-3 h-3" />
+                      İndir
+                    </a>
+                  </div>
                 )}
 
                 {item.status === "error" && (
