@@ -23,8 +23,7 @@
 ## Sıradakiler
 
 ### Kalite / Format Seçimi
-- [ ] Çözünürlük seçeneği — 1080p, 720p, 480p, yalnızca ses (mp3)
-- [ ] Format ayarı item bazında ya da global olarak ayarlanabilsin
+- ✅ Çözünürlük seçeneği — En iyi, 1080p, 720p, 480p, Ses (mp3); input card'da per-item seçim
 - [ ] Altyazı indirme (`--write-subs`, dil seçimi)
 
 ### UX
@@ -34,10 +33,10 @@
 - [ ] Item sıralama — platforma / duruma / tarihe göre
 
 ### İşlevsel
-- [ ] Playlist desteği — şu an `--no-playlist`, opsiyonel açılabilsin
+- ✅ Playlist desteği — settings'te toggle, URL'ler bireysel item'lara ayrıştırılır
 - [ ] İndirme hız limiti — ayarlar paneline `--rate-limit` seçeneği
 - [ ] Geçmişi export et — CSV / JSON olarak dışa aktar
 
 ### Teknik
 - [ ] PWA desteği — masaüstüne kurulabilir, manifest + service worker
-- [ ] yt-dlp güncelleme butonu — ayarlar panelinden `yt-dlp -U`
+- ✅ yt-dlp güncelleme butonu — ayarlar panelinden `yt-dlp -U`
