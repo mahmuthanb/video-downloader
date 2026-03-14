@@ -16,6 +16,8 @@ interface DownloadItem {
   eta?: string;
   filename?: string;
   error?: string;
+  thumbnail?: string;
+  title?: string;
 }
 
 const PLATFORM_PATTERNS: { platform: Platform; regex: RegExp }[] = [
@@ -293,7 +295,18 @@ export default function Home() {
 
     setItems((prev) => [...prev, ...newItems]);
     setInput("");
-    // Queue processor useEffect handles starting downloads
+
+    // Fetch metadata (thumbnail + title) in background for each new item
+    newItems.forEach((item) => {
+      fetch(`/api/meta?url=${encodeURIComponent(item.url)}`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((meta) => {
+          if (meta?.thumbnail || meta?.title) {
+            update(item.id, { thumbnail: meta.thumbnail, title: meta.title });
+          }
+        })
+        .catch(() => {});
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -505,10 +518,24 @@ export default function Home() {
                 className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 space-y-2"
               >
                 <div className="flex items-center gap-2">
-                  <StatusIcon status={item.status} platform={item.platform} />
+                  {item.thumbnail ? (
+                    <div className="relative shrink-0">
+                      <img
+                        src={item.thumbnail}
+                        alt=""
+                        className="w-10 h-7 object-cover rounded bg-gray-100"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                      <span className="absolute -top-1 -right-1">
+                        <StatusIcon status={item.status} platform={item.platform} />
+                      </span>
+                    </div>
+                  ) : (
+                    <StatusIcon status={item.status} platform={item.platform} />
+                  )}
                   <PlatformBadge platform={item.platform} />
-                  <span className="text-xs text-gray-500 font-mono truncate flex-1">
-                    {shortUrl(item.url)}
+                  <span className="text-xs text-gray-500 truncate flex-1">
+                    {item.title || shortUrl(item.url)}
                   </span>
                   <span className="text-xs text-gray-400 shrink-0 flex items-center gap-1.5">
                     {item.status === "waiting" && "Bekliyor"}
