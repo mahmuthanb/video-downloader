@@ -27,7 +27,7 @@
 - ✅ Altyazı indirme — `--write-subs` / `--write-auto-subs`; TR · EN · Otomatik seçimi, SRT formatı, item kartında CC badge
 
 ### UX
-- [ ] Dark mode
+- ✅ Dark mode — class-based Tailwind v4 toggle, localStorage persist, flash önleme, Moon/Sun butonu
 - [ ] Tarayıcı bildirimi — indirme tamamlanınca Notification API
 - [ ] Drag & drop — URL veya dosyayı textarea'ya sürükle-bırak
 - [ ] Item sıralama — platforma / duruma / tarihe göre
