@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw, X, Settings, FolderOpen, Cookie, Upload, FileText, RefreshCw, ListVideo, Moon, Sun } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw, X, Settings, FolderOpen, Cookie, Upload, FileText, RefreshCw, ListVideo, Moon, Sun, Gauge } from "lucide-react";
 import { useTheme } from "./ThemeProvider";
 
 type Status = "waiting" | "downloading" | "done" | "error";
@@ -256,6 +256,10 @@ export default function Home() {
     if (typeof window === "undefined") return "downloads";
     return localStorage.getItem("vd_outputDir") ?? "downloads";
   });
+  const [rateLimit, setRateLimit] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("vd_rateLimit") ?? "";
+  });
   const esRefs = useRef<Map<string, EventSource>>(new Map());
   const [items, setItems] = useState<DownloadItem[]>(() => {
     if (typeof window === "undefined") return [];
@@ -292,6 +296,10 @@ export default function Home() {
   }, [playlistMode]);
 
   useEffect(() => {
+    localStorage.setItem("vd_rateLimit", rateLimit);
+  }, [rateLimit]);
+
+  useEffect(() => {
     fetch("/api/cookies").then((r) => r.json()).then((d) => setCookieLoaded(d.loaded));
   }, []);
 
@@ -312,7 +320,7 @@ export default function Home() {
   const startDownload = useCallback(
     (item: DownloadItem) => {
       const es = new EventSource(
-        `/api/download?url=${encodeURIComponent(item.url)}&dir=${encodeURIComponent(outputDir)}&format=${item.format ?? "best"}&subs=${item.subtitleLang ?? "none"}`
+        `/api/download?url=${encodeURIComponent(item.url)}&dir=${encodeURIComponent(outputDir)}&format=${item.format ?? "best"}&subs=${item.subtitleLang ?? "none"}&rateLimit=${encodeURIComponent(rateLimit)}`
       );
       esRefs.current.set(item.id, es);
 
@@ -342,7 +350,7 @@ export default function Home() {
         cleanup();
       });
     },
-    [update, outputDir]
+    [update, outputDir, rateLimit]
   );
 
   const cancelItem = useCallback(
@@ -715,6 +723,23 @@ export default function Home() {
                   {ytdlpUpdating ? "Güncelleniyor..." : "Güncelle"}
                 </button>
               </div>
+            </div>
+
+            <div className="border-t border-gray-700/20 dark:border-gray-700 pt-3 mt-3 space-y-1.5">
+              <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <Gauge className="w-3 h-3" />
+                Hız limiti
+              </span>
+              <input
+                type="text"
+                value={rateLimit}
+                onChange={(e) => setRateLimit(e.target.value)}
+                placeholder="500K · 2M · boş=sınırsız"
+                className="w-full text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 outline-none focus:border-indigo-400 transition-colors font-mono"
+              />
+              <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                Boş bırakılırsa maksimum hızda indirir.
+              </p>
             </div>
           </div>
         )}

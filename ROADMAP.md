@@ -34,7 +34,7 @@
 
 ### İşlevsel
 - ✅ Playlist desteği — settings'te toggle, URL'ler bireysel item'lara ayrıştırılır
-- [ ] İndirme hız limiti — ayarlar paneline `--rate-limit` seçeneği
+- ✅ İndirme hız limiti — ayarlar panelinde Gauge ikonlu input, `--rate-limit` yt-dlp argümanı, localStorage persist
 - [ ] Geçmişi export et — CSV / JSON olarak dışa aktar
 
 ### Teknik

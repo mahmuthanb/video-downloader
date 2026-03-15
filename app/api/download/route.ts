@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
   const dir = request.nextUrl.searchParams.get("dir") || "downloads";
   const format = request.nextUrl.searchParams.get("format") || "best";
   const subs = request.nextUrl.searchParams.get("subs") || "none";
+  const rateLimit = request.nextUrl.searchParams.get("rateLimit") || "";
 
   if (!url) {
     return new Response("Missing url", { status: 400 });
@@ -80,6 +81,10 @@ export async function GET(request: NextRequest) {
         "--no-playlist",
         "--newline",
       ];
+
+      if (rateLimit.trim()) {
+        ytdlpArgs.push("--rate-limit", rateLimit.trim());
+      }
 
       if (fs.existsSync(COOKIE_PATH)) {
         ytdlpArgs.push("--cookies", COOKIE_PATH);
