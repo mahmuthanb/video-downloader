@@ -38,5 +38,5 @@
 - ✅ Geçmişi export et — CSV (virgül escape) / JSON pretty-print, Blob anchor download, YYYY-MM-DD dosya adı
 
 ### Teknik
-- [ ] PWA desteği — masaüstüne kurulabilir, manifest + service worker
+- ✅ PWA desteği — manifest.json, cache-first service worker (/api/* hariç), SW registration inline script, theme-color meta
 - ✅ yt-dlp güncelleme butonu — ayarlar panelinden `yt-dlp -U`
