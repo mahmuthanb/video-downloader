@@ -480,16 +480,42 @@ export default function Home() {
     [update]
   );
 
+  const importText = (text: string) => {
+    setInput((prev) => (prev ? prev + "\n" + text : text));
+  };
+
   const handleBatchImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      setInput((prev) => (prev ? prev + "\n" + text : text));
-    };
+    reader.onload = (ev) => importText(ev.target?.result as string);
     reader.readAsText(file);
     if (batchInputRef.current) batchInputRef.current.value = "";
+  };
+
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent<HTMLTextAreaElement>) => {
+    e.preventDefault();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = () => setIsDraggingOver(false);
+
+  const handleDrop = (e: React.DragEvent<HTMLTextAreaElement>) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      if (file.type === "text/plain" || file.name.endsWith(".csv")) {
+        const reader = new FileReader();
+        reader.onload = (ev) => importText(ev.target?.result as string);
+        reader.readAsText(file);
+      }
+      return;
+    }
+    const text = e.dataTransfer.getData("text");
+    if (text) importText(text);
   };
 
   const handleCookieUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -675,10 +701,15 @@ export default function Home() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
             placeholder={
               "Linkleri buraya yapıştır (karışık olabilir)...\nhttps://www.instagram.com/reel/xxx\nhttps://www.tiktok.com/@user/video/yyy\nhttps://youtube.com/shorts/zzz"
             }
-            className="w-full h-28 resize-none text-sm text-gray-700 dark:text-gray-200 bg-transparent placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none leading-relaxed"
+            className={`w-full h-28 resize-none text-sm text-gray-700 dark:text-gray-200 bg-transparent placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none leading-relaxed transition-colors rounded ${
+              isDraggingOver ? "ring-2 ring-indigo-400 dark:ring-indigo-500" : ""
+            }`}
           />
           {/* Format selector */}
           <div className="flex items-center gap-1.5 flex-wrap">

@@ -29,7 +29,7 @@
 ### UX
 - ✅ Dark mode — class-based Tailwind v4 toggle, localStorage persist, flash önleme, Moon/Sun butonu
 - ✅ Tarayıcı bildirimi — indirme tamamlanınca Notification API, izin yönetimi, status geçiş takibi (useRef Map)
-- [ ] Drag & drop — URL veya dosyayı textarea'ya sürükle-bırak
+- ✅ Drag & drop — metin/URL ve .txt/.csv dosyası textarea'ya sürükle-bırak, indigo ring highlight
 - [ ] Item sıralama — platforma / duruma / tarihe göre
 
 ### İşlevsel
