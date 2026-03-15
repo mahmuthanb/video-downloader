@@ -30,7 +30,7 @@
 - ✅ Dark mode — class-based Tailwind v4 toggle, localStorage persist, flash önleme, Moon/Sun butonu
 - ✅ Tarayıcı bildirimi — indirme tamamlanınca Notification API, izin yönetimi, status geçiş takibi (useRef Map)
 - ✅ Drag & drop — metin/URL ve .txt/.csv dosyası textarea'ya sürükle-bırak, indigo ring highlight
-- [ ] Item sıralama — platforma / duruma / tarihe göre
+- ✅ Item sıralama — Platform / Durum / Tarih toggle butonları, sortItems pure fn, createdAt timestamp
 
 ### İşlevsel
 - ✅ Playlist desteği — settings'te toggle, URL'ler bireysel item'lara ayrıştırılır

@@ -8,6 +8,7 @@ type Status = "waiting" | "downloading" | "done" | "error";
 type Platform = "instagram" | "tiktok" | "youtube";
 type Format = "best" | "1080p" | "720p" | "480p" | "audio";
 type SubLang = "none" | "tr" | "en" | "auto";
+type SortKey = "default" | "platform" | "status" | "date";
 
 interface DownloadItem {
   id: string;
@@ -25,6 +26,7 @@ interface DownloadItem {
   uploader?: string;
   format?: Format;
   subtitleLang?: SubLang;
+  createdAt: number;
 }
 
 const SUB_LABELS: Record<SubLang, string> = {
@@ -73,6 +75,22 @@ function buildTags(meta: {
     .forEach((t) => set.add(t.toLowerCase()));
 
   return Array.from(set);
+}
+
+const PLATFORM_ORDER: Record<Platform, number> = { instagram: 1, tiktok: 2, youtube: 3 };
+const STATUS_ORDER: Record<Status, number> = { downloading: 1, waiting: 2, done: 3, error: 4 };
+
+function sortItems(items: DownloadItem[], key: SortKey): DownloadItem[] {
+  switch (key) {
+    case "platform":
+      return [...items].sort((a, b) => PLATFORM_ORDER[a.platform] - PLATFORM_ORDER[b.platform]);
+    case "status":
+      return [...items].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
+    case "date":
+      return [...items].sort((a, b) => b.createdAt - a.createdAt);
+    default:
+      return items;
+  }
 }
 
 const PLATFORM_PATTERNS: { platform: Platform; regex: RegExp }[] = [
@@ -224,6 +242,7 @@ export default function Home() {
   const [cookieLoaded, setCookieLoaded] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<Format>("best");
   const [selectedSubLang, setSelectedSubLang] = useState<SubLang>("none");
+  const [sortKey, setSortKey] = useState<SortKey>("default");
   const [playlistMode, setPlaylistMode] = useState(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("vd_playlistMode") === "true";
@@ -245,11 +264,13 @@ export default function Home() {
       if (!stored) return [];
       const parsed: DownloadItem[] = JSON.parse(stored);
       // Stale downloading/waiting items from a previous session → mark as error
-      return parsed.map((item) =>
-        item.status === "downloading" || item.status === "waiting"
-          ? { ...item, status: "error", error: "Sayfa yenilendi, tekrar dene" }
-          : item
-      );
+      return parsed.map((item) => ({
+        createdAt: 0,
+        ...item,
+        ...(item.status === "downloading" || item.status === "waiting"
+          ? { status: "error" as const, error: "Sayfa yenilendi, tekrar dene" }
+          : {}),
+      }));
     } catch {
       return [];
     }
@@ -426,6 +447,7 @@ export default function Home() {
       progress: 0,
       format: selectedFormat,
       subtitleLang: selectedSubLang,
+      createdAt: Date.now(),
       ...(title ? { title } : {}),
       ...(thumbnail ? { thumbnail } : {}),
     }));
@@ -561,6 +583,8 @@ export default function Home() {
   const visibleItems = activeTag
     ? items.filter((d) => d.tags?.includes(activeTag))
     : items;
+
+  const sortedItems = sortItems(visibleItems, sortKey);
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col items-center px-4 py-12">
@@ -789,6 +813,21 @@ export default function Home() {
               <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 İndirmeler
               </span>
+              <div className="flex gap-1 ml-2">
+                {(["platform", "status", "date"] as const).map((key) => (
+                  <button
+                    key={key}
+                    onClick={() => setSortKey((prev) => (prev === key ? "default" : key))}
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                      sortKey === key
+                        ? "bg-indigo-600 text-white"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    {key === "platform" ? "Platform" : key === "status" ? "Durum" : "Tarih"}
+                  </button>
+                ))}
+              </div>
               {hasClearable && (
                 <button
                   onClick={clearDone}
@@ -819,7 +858,7 @@ export default function Home() {
               </div>
             )}
 
-            {visibleItems.map((item) => (
+            {sortedItems.map((item) => (
               <div
                 key={item.id}
                 className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm px-4 py-3 space-y-2"
