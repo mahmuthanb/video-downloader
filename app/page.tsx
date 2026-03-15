@@ -6,6 +6,7 @@ import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw, X, Se
 type Status = "waiting" | "downloading" | "done" | "error";
 type Platform = "instagram" | "tiktok" | "youtube";
 type Format = "best" | "1080p" | "720p" | "480p" | "audio";
+type SubLang = "none" | "tr" | "en" | "auto";
 
 interface DownloadItem {
   id: string;
@@ -22,7 +23,15 @@ interface DownloadItem {
   tags?: string[];
   uploader?: string;
   format?: Format;
+  subtitleLang?: SubLang;
 }
+
+const SUB_LABELS: Record<SubLang, string> = {
+  none: "Altyazı yok",
+  tr: "TR",
+  en: "EN",
+  auto: "Otomatik",
+};
 
 const FORMAT_LABELS: Record<Format, string> = {
   best: "En iyi",
@@ -212,6 +221,7 @@ export default function Home() {
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [cookieLoaded, setCookieLoaded] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<Format>("best");
+  const [selectedSubLang, setSelectedSubLang] = useState<SubLang>("none");
   const [playlistMode, setPlaylistMode] = useState(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("vd_playlistMode") === "true";
@@ -279,7 +289,7 @@ export default function Home() {
   const startDownload = useCallback(
     (item: DownloadItem) => {
       const es = new EventSource(
-        `/api/download?url=${encodeURIComponent(item.url)}&dir=${encodeURIComponent(outputDir)}&format=${item.format ?? "best"}`
+        `/api/download?url=${encodeURIComponent(item.url)}&dir=${encodeURIComponent(outputDir)}&format=${item.format ?? "best"}&subs=${item.subtitleLang ?? "none"}`
       );
       esRefs.current.set(item.id, es);
 
@@ -382,6 +392,7 @@ export default function Home() {
       status: "waiting",
       progress: 0,
       format: selectedFormat,
+      subtitleLang: selectedSubLang,
       ...(title ? { title } : {}),
       ...(thumbnail ? { thumbnail } : {}),
     }));
@@ -646,6 +657,24 @@ export default function Home() {
             ))}
           </div>
 
+          {/* Subtitle selector */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[11px] text-gray-400 shrink-0">Altyazı:</span>
+            {(Object.keys(SUB_LABELS) as SubLang[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => setSelectedSubLang(s)}
+                className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-colors ${
+                  selectedSubLang === s
+                    ? "bg-teal-600 text-white"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                }`}
+              >
+                {SUB_LABELS[s]}
+              </button>
+            ))}
+          </div>
+
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-400 flex items-center gap-1">
               <Link className="w-3 h-3" />
@@ -779,9 +808,16 @@ export default function Home() {
 
                 {item.status === "done" && item.filename && (
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-emerald-600 font-mono truncate">
-                      {item.filename}
-                    </p>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-xs text-emerald-600 font-mono truncate">
+                        {item.filename}
+                      </p>
+                      {item.subtitleLang && item.subtitleLang !== "none" && (
+                        <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-teal-50 text-teal-600 border border-teal-200">
+                          CC {item.subtitleLang === "auto" ? "auto" : item.subtitleLang.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
                     <a
                       href={`/api/file?name=${encodeURIComponent(item.filename)}&dir=${encodeURIComponent(outputDir)}`}
                       download={item.filename}

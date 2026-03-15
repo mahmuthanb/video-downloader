@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get("url");
   const dir = request.nextUrl.searchParams.get("dir") || "downloads";
   const format = request.nextUrl.searchParams.get("format") || "best";
+  const subs = request.nextUrl.searchParams.get("subs") || "none";
 
   if (!url) {
     return new Response("Missing url", { status: 400 });
@@ -64,10 +65,18 @@ export async function GET(request: NextRequest) {
 
       const formatArgs = FORMAT_ARGS[format] ?? FORMAT_ARGS.best;
 
+      const subsArgs: string[] = [];
+      if (subs === "auto") {
+        subsArgs.push("--write-auto-subs", "--convert-subs", "srt");
+      } else if (subs !== "none") {
+        subsArgs.push("--write-subs", "--sub-langs", subs, "--convert-subs", "srt");
+      }
+
       const ytdlpArgs = [
         "--output",
         `${outputDir}/%(uploader)s_%(id)s.%(ext)s`,
         ...formatArgs,
+        ...subsArgs,
         "--no-playlist",
         "--newline",
       ];

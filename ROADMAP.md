@@ -24,7 +24,7 @@
 
 ### Kalite / Format Seçimi
 - ✅ Çözünürlük seçeneği — En iyi, 1080p, 720p, 480p, Ses (mp3); input card'da per-item seçim
-- [ ] Altyazı indirme (`--write-subs`, dil seçimi)
+- ✅ Altyazı indirme — `--write-subs` / `--write-auto-subs`; TR · EN · Otomatik seçimi, SRT formatı, item kartında CC badge
 
 ### UX
 - [ ] Dark mode
