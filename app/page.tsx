@@ -336,6 +336,37 @@ export default function Home() {
     [update]
   );
 
+  // Browser notifications: fire once when an item transitions to 'done'
+  const prevStatusMapRef = useRef<Map<string, Status>>(new Map());
+  useEffect(() => {
+    const notify = async (item: DownloadItem) => {
+      if (!("Notification" in window)) return;
+      if (Notification.permission === "denied") return;
+      if (Notification.permission !== "granted") {
+        try {
+          const result = await Notification.requestPermission();
+          if (result !== "granted") return;
+        } catch {
+          return;
+        }
+      }
+      const title = item.title || shortUrl(item.url);
+      new Notification(title, { body: "İndirme tamamlandı ✓" });
+    };
+
+    items.forEach((item) => {
+      const prev = prevStatusMapRef.current.get(item.id);
+      if (item.status === "done" && prev !== "done") {
+        void notify(item);
+      }
+    });
+
+    // Sync the ref map to current statuses
+    const next = new Map<string, Status>();
+    items.forEach((item) => next.set(item.id, item.status));
+    prevStatusMapRef.current = next;
+  }, [items]);
+
   // Queue processor: start waiting items up to MAX_CONCURRENT
   useEffect(() => {
     const activeCount = items.filter((d) => d.status === "downloading").length;
