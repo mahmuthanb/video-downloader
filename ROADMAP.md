@@ -35,7 +35,7 @@
 ### İşlevsel
 - ✅ Playlist desteği — settings'te toggle, URL'ler bireysel item'lara ayrıştırılır
 - ✅ İndirme hız limiti — ayarlar panelinde Gauge ikonlu input, `--rate-limit` yt-dlp argümanı, localStorage persist
-- [ ] Geçmişi export et — CSV / JSON olarak dışa aktar
+- ✅ Geçmişi export et — CSV (virgül escape) / JSON pretty-print, Blob anchor download, YYYY-MM-DD dosya adı
 
 ### Teknik
 - [ ] PWA desteği — masaüstüne kurulabilir, manifest + service worker

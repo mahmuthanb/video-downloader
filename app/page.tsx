@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw, X, Settings, FolderOpen, Cookie, Upload, FileText, RefreshCw, ListVideo, Moon, Sun, Gauge } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw, X, Settings, FolderOpen, Cookie, Upload, FileText, RefreshCw, ListVideo, Moon, Sun, Gauge, FileDown } from "lucide-react";
 import { useTheme } from "./ThemeProvider";
 
 type Status = "waiting" | "downloading" | "done" | "error";
@@ -564,6 +564,44 @@ export default function Home() {
     setCookieLoaded(false);
   };
 
+  const exportHistory = (format: 'csv' | 'json') => {
+    const exportable = items.filter((d) => d.status === 'done' || d.status === 'error');
+    if (exportable.length === 0) return;
+
+    let content: string;
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    if (format === 'csv') {
+      const escape = (val: string) => (val.includes(',') ? `"${val.replace(/"/g, '""')}"` : val);
+      const header = 'date,platform,title,url,filename,status';
+      const rows = exportable.map((item) =>
+        [
+          new Date(item.createdAt).toISOString(),
+          escape(item.platform),
+          escape(item.title ?? ''),
+          escape(item.url),
+          escape(item.filename ?? ''),
+          item.status,
+        ].join(',')
+      );
+      content = [header, ...rows].join('\n');
+    } else {
+      content = JSON.stringify(exportable, null, 2);
+    }
+
+    const blob = new Blob([content], {
+      type: format === 'csv' ? 'text/csv;charset=utf-8;' : 'application/json;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vd-history-${dateStr}.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const clearDone = () => {
     setItems((prev) =>
       prev.filter((d) => d.status !== "done" && d.status !== "error")
@@ -740,6 +778,25 @@ export default function Home() {
               <p className="text-[11px] text-gray-400 dark:text-gray-500">
                 Boş bırakılırsa maksimum hızda indirir.
               </p>
+            </div>
+
+            <div className="border-t border-gray-700/20 dark:border-gray-700 pt-3 mt-3 space-y-2">
+              <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <FileDown className="w-3 h-3" />
+                Geçmişi dışa aktar
+              </span>
+              <div className="flex items-center gap-2">
+                {(['csv', 'json'] as const).map((fmt) => (
+                  <button
+                    key={fmt}
+                    onClick={() => exportHistory(fmt)}
+                    disabled={!items.some((d) => d.status === 'done' || d.status === 'error')}
+                    className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed border border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-500 rounded-lg px-2.5 py-1 transition-colors uppercase font-medium"
+                  >
+                    {fmt}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
