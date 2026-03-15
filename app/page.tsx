@@ -638,7 +638,7 @@ export default function Home() {
         {/* Header */}
         <div className="flex items-center gap-2">
           <Download className="w-6 h-6 text-indigo-600" />
-          <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Video Downloader</h1>
+          <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">VaultDL</h1>
           <div className="flex items-center gap-1 ml-1">
             <PlatformBadge platform="instagram" />
             <PlatformBadge platform="tiktok" />

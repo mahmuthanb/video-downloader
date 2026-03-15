@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Video Downloader",
-  description: "Instagram, TikTok ve YouTube Shorts indirici",
+  title: "VaultDL",
+  description: "Self-hosted video downloader for Instagram, TikTok and YouTube. No ads, no tracking, no watermark.",
 };
 
 export default function RootLayout({

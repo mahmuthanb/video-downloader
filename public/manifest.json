@@ -1,11 +1,11 @@
 {
-  "name": "Video Downloader",
-  "short_name": "VDL",
-  "description": "Instagram, TikTok ve YouTube Shorts video indirici",
+  "name": "VaultDL",
+  "short_name": "VaultDL",
+  "description": "Self-hosted video downloader for Instagram, TikTok and YouTube. No ads, no tracking.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "theme_color": "#4f46e5",
   "icons": [
     {
       "src": "/favicon.ico",
