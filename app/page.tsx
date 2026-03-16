@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw, X, Settings, FolderOpen, Cookie, Upload, FileText, RefreshCw, ListVideo, Moon, Sun, Gauge, FileDown } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Download, Link, Trash2, RotateCcw, X, Settings, FolderOpen, Cookie, Upload, FileText, RefreshCw, ListVideo, Moon, Sun, Gauge, FileDown, Puzzle } from "lucide-react";
 import { useTheme } from "./ThemeProvider";
 
 type Status = "waiting" | "downloading" | "done" | "error";
@@ -857,6 +857,29 @@ export default function Home() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="border-t border-gray-700/20 dark:border-gray-700 pt-3 mt-3 space-y-2">
+              <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <Puzzle className="w-3 h-3" />
+                Chrome eklentisi
+              </span>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                Aktif sekmedeki videoyu tek tıkla kuyruğa ekle.
+              </p>
+              <a
+                href="/api/extension"
+                download="vaultdl-helper.zip"
+                className="inline-flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:border-indigo-400 dark:hover:border-indigo-600 rounded-lg px-3 py-1.5 transition-colors font-medium"
+              >
+                <Download className="w-3 h-3" />
+                vaultdl-helper.zip indir
+              </a>
+              <ol className="text-[11px] text-gray-400 dark:text-gray-500 space-y-1 list-decimal list-inside">
+                <li>Zip&apos;i çıkart, bir klasöre kaydet</li>
+                <li><span className="font-mono">chrome://extensions</span> → Geliştirici modu aç</li>
+                <li>&quot;Paketlenmemiş uzantı yükle&quot; → klasörü seç</li>
+              </ol>
             </div>
           </div>
         )}
