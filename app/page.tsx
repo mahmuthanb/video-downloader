@@ -269,8 +269,8 @@ export default function Home() {
       const parsed: DownloadItem[] = JSON.parse(stored);
       // Stale downloading/waiting items from a previous session → mark as error
       return parsed.map((item) => ({
-        createdAt: 0,
         ...item,
+        createdAt: item.createdAt ?? 0,
         ...(item.status === "downloading" || item.status === "waiting"
           ? { status: "error" as const, error: "Sayfa yenilendi, tekrar dene" }
           : {}),
@@ -323,7 +323,7 @@ export default function Home() {
     );
   }, []);
 
-  // Chrome extension queue polling — picks up URLs added via the browser extension
+  // Chrome extension queue polling — URL'leri textarea'ya append eder, indirme başlatmaz
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
@@ -333,49 +333,16 @@ export default function Home() {
         const urls: string[] = data.urls ?? [];
         if (urls.length === 0) return;
 
-        const newItems: DownloadItem[] = [];
-        setItems((prev) => {
-          const existingUrls = new Set(prev.map((d) => d.url));
-          for (const url of urls) {
-            if (existingUrls.has(url)) continue;
-            const extracted = extractUrls(url);
-            if (extracted.length === 0) continue;
-            const { platform } = extracted[0];
-            const item: DownloadItem = {
-              id: crypto.randomUUID(),
-              url,
-              platform,
-              status: "waiting",
-              progress: 0,
-              format: selectedFormatRef.current,
-              subtitleLang: selectedSubLangRef.current,
-              createdAt: Date.now(),
-            };
-            newItems.push(item);
-            existingUrls.add(url);
-          }
-          return newItems.length > 0 ? [...prev, ...newItems] : prev;
-        });
-
-        newItems.forEach((item) => {
-          fetch(`/api/meta?url=${encodeURIComponent(item.url)}`)
-            .then((r) => r.ok ? r.json() : null)
-            .then((meta) => {
-              if (!meta) return;
-              update(item.id, {
-                thumbnail: meta.thumbnail ?? undefined,
-                title: meta.title ?? undefined,
-                uploader: meta.uploader ?? undefined,
-                tags: buildTags(meta, item.platform),
-              });
-            })
-            .catch(() => {});
+        setInput((prev) => {
+          const incoming = urls.filter((url) => !prev.includes(url));
+          if (incoming.length === 0) return prev;
+          return prev ? prev + "\n" + incoming.join("\n") : incoming.join("\n");
         });
       } catch {}
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [update]);
+  }, []);
 
   const startDownload = useCallback(
     (item: DownloadItem) => {
