@@ -303,6 +303,12 @@ export default function Home() {
     fetch("/api/cookies").then((r) => r.json()).then((d) => setCookieLoaded(d.loaded));
   }, []);
 
+  // Refs to avoid stale closure in polling interval
+  const selectedFormatRef = useRef<Format>(selectedFormat);
+  useEffect(() => { selectedFormatRef.current = selectedFormat; }, [selectedFormat]);
+  const selectedSubLangRef = useRef<SubLang>(selectedSubLang);
+  useEffect(() => { selectedSubLangRef.current = selectedSubLang; }, [selectedSubLang]);
+
   const detected = extractUrls(input);
   const foundCount = detected.length;
 
@@ -316,6 +322,60 @@ export default function Home() {
       prev.map((d) => (d.id === id ? { ...d, ...patch } : d))
     );
   }, []);
+
+  // Chrome extension queue polling — picks up URLs added via the browser extension
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const r = await fetch("/api/queue");
+        if (!r.ok) return;
+        const data = await r.json();
+        const urls: string[] = data.urls ?? [];
+        if (urls.length === 0) return;
+
+        const newItems: DownloadItem[] = [];
+        setItems((prev) => {
+          const existingUrls = new Set(prev.map((d) => d.url));
+          for (const url of urls) {
+            if (existingUrls.has(url)) continue;
+            const extracted = extractUrls(url);
+            if (extracted.length === 0) continue;
+            const { platform } = extracted[0];
+            const item: DownloadItem = {
+              id: crypto.randomUUID(),
+              url,
+              platform,
+              status: "waiting",
+              progress: 0,
+              format: selectedFormatRef.current,
+              subtitleLang: selectedSubLangRef.current,
+              createdAt: Date.now(),
+            };
+            newItems.push(item);
+            existingUrls.add(url);
+          }
+          return newItems.length > 0 ? [...prev, ...newItems] : prev;
+        });
+
+        newItems.forEach((item) => {
+          fetch(`/api/meta?url=${encodeURIComponent(item.url)}`)
+            .then((r) => r.ok ? r.json() : null)
+            .then((meta) => {
+              if (!meta) return;
+              update(item.id, {
+                thumbnail: meta.thumbnail ?? undefined,
+                title: meta.title ?? undefined,
+                uploader: meta.uploader ?? undefined,
+                tags: buildTags(meta, item.platform),
+              });
+            })
+            .catch(() => {});
+        });
+      } catch {}
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [update]);
 
   const startDownload = useCallback(
     (item: DownloadItem) => {
