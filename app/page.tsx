@@ -640,6 +640,19 @@ export default function Home() {
     (d) => d.status === "done" || d.status === "error"
   );
 
+  const saveableItems = items.filter((d) => d.status === "done" && d.filename);
+
+  const saveAll = () => {
+    saveableItems.forEach((item) => {
+      const a = document.createElement("a");
+      a.href = `/api/file?name=${encodeURIComponent(item.filename!)}&dir=${encodeURIComponent(outputDir)}`;
+      a.download = item.filename!;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+  };
+
   const foundSummary = () => {
     if (foundCount === 0) return "Link yapıştır veya yaz";
     const parts: string[] = [];
@@ -960,15 +973,26 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-              {hasClearable && (
-                <button
-                  onClick={clearDone}
-                  className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 flex items-center gap-1 transition-colors"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  Temizle
-                </button>
-              )}
+              <div className="flex items-center gap-2 ml-auto">
+                {saveableItems.length > 1 && (
+                  <button
+                    onClick={saveAll}
+                    className="text-xs text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-1 transition-colors"
+                  >
+                    <Download className="w-3 h-3" />
+                    Tümünü Kaydet ({saveableItems.length})
+                  </button>
+                )}
+                {hasClearable && (
+                  <button
+                    onClick={clearDone}
+                    className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 flex items-center gap-1 transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Temizle
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Tag filter */}
@@ -1066,7 +1090,7 @@ export default function Home() {
                       className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600 transition-colors shrink-0"
                     >
                       <Download className="w-3 h-3" />
-                      İndir
+                      Kaydet
                     </a>
                   </div>
                 )}
