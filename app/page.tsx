@@ -640,7 +640,8 @@ export default function Home() {
     (d) => d.status === "done" || d.status === "error"
   );
 
-  const saveableItems = items.filter((d) => d.status === "done" && d.filename);
+  const doneItems = items.filter((d) => d.status === "done");
+  const saveableItems = doneItems.filter((d) => !!d.filename);
 
   const saveAll = () => {
     saveableItems.forEach((item) => {
@@ -954,11 +955,11 @@ export default function Home() {
         {/* Download list */}
         {items.length > 0 && (
           <div className="space-y-2">
-            <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2 px-1">
               <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 İndirmeler
               </span>
-              <div className="flex gap-1 ml-2">
+              <div className="flex gap-1">
                 {(["platform", "status", "date"] as const).map((key) => (
                   <button
                     key={key}
@@ -974,7 +975,7 @@ export default function Home() {
                 ))}
               </div>
               <div className="flex items-center gap-2 ml-auto">
-                {saveableItems.length > 1 && (
+                {doneItems.length > 1 && (
                   <button
                     onClick={saveAll}
                     className="text-xs text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-1 transition-colors"
@@ -983,15 +984,15 @@ export default function Home() {
                     Tümünü Kaydet ({saveableItems.length})
                   </button>
                 )}
-                {hasClearable && (
-                  <button
-                    onClick={clearDone}
-                    className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 flex items-center gap-1 transition-colors"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    Temizle
-                  </button>
-                )}
+              {hasClearable && (
+                <button
+                  onClick={clearDone}
+                  className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 flex items-center gap-1 transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Temizle
+                </button>
+              )}
               </div>
             </div>
 
