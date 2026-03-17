@@ -37,7 +37,7 @@ Every other video downloader is either covered in fake download buttons, injecti
 | 🔃 | **Sorting** | Sort by platform, status or date |
 | 📂 | **Playlist support** | Auto-expand playlists into individual items |
 | ✋ | **Cancel & Retry** | Cancel active downloads, retry failed ones |
-| 💾 | **Browser save** | Download completed videos directly to your browser |
+| 💾 | **Save to browser** | Save completed videos directly to your browser downloads |
 | 🏷️ | **Auto tags & filter** | Tags generated from platform, uploader, duration and metadata |
 | 🗂️ | **Batch import** | Import URLs from `.txt` or `.csv` files |
 | 🍪 | **Cookie support** | Upload `cookies.txt` for private or age-restricted content |
@@ -46,6 +46,7 @@ Every other video downloader is either covered in fake download buttons, injecti
 | 📤 | **History export** | Export download history as CSV or JSON |
 | 🔄 | **yt-dlp updater** | Update yt-dlp from the settings panel with one click |
 | 📱 | **PWA** | Install to your desktop, works offline |
+| 🧩 | **Chrome Extension** | One-click button injected on Instagram, TikTok and YouTube pages |
 
 ---
 
@@ -97,7 +98,19 @@ Open [http://localhost:3000](http://localhost:3000).
 3. Optionally select subtitles: **TR · EN · Auto**
 4. Hit **Download** or press `Cmd/Ctrl + Enter`
 5. Watch live progress, speed and ETA for each item
-6. Click **Download** on completed items to save to your browser
+6. Click **Save** on completed items to download to your browser
+7. Use **Save All (N)** to save all completed items at once
+
+### Chrome Extension
+The extension injects a **⬇ VaultDL** button directly on Instagram, TikTok and YouTube video pages.
+
+1. Open `chrome://extensions` → enable **Developer mode**
+2. Click **Load unpacked** → select the `chrome-extension/` folder
+3. Navigate to any video page — the button appears in the top-right corner
+4. Click it — the URL is added to the input box in VaultDL (no auto-download)
+5. Review the URL and hit **Download** when ready
+
+To update the extension after pulling changes: `chrome://extensions` → VaultDL Helper → **↺ Reload**.
 
 ### Playlist
 1. Open Settings (⚙) → enable **Playlist mode**
@@ -133,11 +146,17 @@ app/
 ├── ThemeProvider.tsx         # Dark mode context
 └── api/
     ├── download/route.ts     # SSE endpoint — yt-dlp spawn, stdout parse, progress stream
+    ├── queue/route.ts        # Chrome extension URL queue (POST to add, GET to consume)
     ├── playlist/route.ts     # Playlist expansion — --flat-playlist --dump-single-json
     ├── update-ytdlp/route.ts # yt-dlp -U endpoint
     ├── file/route.ts         # File stream endpoint for browser download
     ├── meta/route.ts         # Metadata fetch — thumbnail, title, tags
     └── cookies/route.ts      # Cookie file management (GET/POST/DELETE)
+chrome-extension/
+    ├── manifest.json         # Manifest v3
+    ├── content.js            # Injects VaultDL button on video pages (MutationObserver + polling)
+    ├── popup.html            # Extension popup UI
+    └── popup.js              # Popup logic — active tab URL → /api/queue
 public/
     ├── manifest.json         # PWA manifest
     └── sw.js                 # Service worker (cache-first, API routes excluded)
